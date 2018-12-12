@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using GitCommands.Git.Extensions;
 using GitUIPluginInterfaces;
 using GitUIPluginInterfaces.BuildServerIntegration;
 using JetBrains.Annotations;
@@ -12,32 +12,53 @@ namespace GitCommands
 {
     public sealed class GitRevision : IGitItem, INotifyPropertyChanged
     {
-        /// <summary>40 characters of 0's</summary>
-        public const string UnstagedGuid = "0000000000000000000000000000000000000000";
-
         /// <summary>40 characters of 1's</summary>
-        public const string IndexGuid = "1111111111111111111111111111111111111111";
+        public const string WorkTreeGuid = "1111111111111111111111111111111111111111";
 
-        /// <summary>40 characters of a-f or any digit.</summary>
-        public const string Sha1HashPattern = @"[a-f\d]{40}";
-        public const string Sha1HashShortPattern = @"[a-f\d]{7,40}";
-        public static readonly Regex Sha1HashRegex = new Regex("^" + Sha1HashPattern + "$", RegexOptions.Compiled);
-        public static readonly Regex Sha1HashShortRegex = new Regex(string.Format(@"\b{0}\b", Sha1HashShortPattern), RegexOptions.Compiled);
+        /// <summary>40 characters of 2's</summary>
+        public const string IndexGuid = "2222222222222222222222222222222222222222";
 
-        public string[] ParentGuids;
+        /// <summary>40 characters of 2's
+        /// Artificial commit for the combined diff</summary>
+        public const string CombinedDiffGuid = "3333333333333333333333333333333333333333";
+
+        public static readonly Regex Sha1HashRegex = new Regex(@"^[a-f\d]{40}$", RegexOptions.Compiled);
+        public static readonly Regex Sha1HashShortRegex = new Regex(@"\b[a-f\d]{7,40}\b", RegexOptions.Compiled);
+
         private BuildInfo _buildStatus;
 
-        public GitRevision(string guid)
+        public GitRevision([NotNull] ObjectId objectId)
         {
-            // TODO: this looks like an incorrect behaviour, rev.Guid must be validated and set to "" if null or empty.
-            Guid = guid;
-            Subject = "";
-            SubjectCount = "";
+            ObjectId = objectId ?? throw new ArgumentNullException(nameof(objectId));
         }
 
-        public List<IGitRef> Refs { get; } = new List<IGitRef>();
+        [NotNull]
+        public ObjectId ObjectId { get; }
 
-        public string TreeGuid { get; set; }
+        [NotNull]
+        public string Guid
+        {
+            get
+            {
+                return ObjectId.ToString();
+            }
+        }
+
+        // TODO this should probably be null when not yet populated, similar to how ParentIds works
+        [NotNull, ItemNotNull]
+        public IReadOnlyList<IGitRef> Refs { get; set; } = Array.Empty<IGitRef>();
+
+        /// <summary>
+        /// Gets the revision's parent IDs.
+        /// </summary>
+        /// <remarks>
+        /// Can return <c>null</c> in cases where the data has not been populated
+        /// for whatever reason.
+        /// </remarks>
+        [CanBeNull, ItemNotNull]
+        public IReadOnlyList<ObjectId> ParentIds { get; set; }
+
+        public ObjectId TreeGuid { get; set; }
 
         public string Author { get; set; }
         public string AuthorEmail { get; set; }
@@ -46,6 +67,7 @@ namespace GitCommands
         public string CommitterEmail { get; set; }
         public DateTime CommitDate { get; set; }
 
+        [CanBeNull]
         public BuildInfo BuildStatus
         {
             get => _buildStatus;
@@ -61,57 +83,29 @@ namespace GitCommands
             }
         }
 
-        public string Subject { get; set; }
-
-        // Count for artificial commits (could be changed to object lists)
-        public string SubjectCount { get; set; }
+        public string Subject { get; set; } = "";
+        [CanBeNull]
         public string Body { get; set; }
+        public bool HasMultiLineMessage { get; set; }
 
         // UTF-8 when is null or empty
         public string MessageEncoding { get; set; }
 
-        #region IGitItem Members
-
-        public string Guid { get; set; }
         public string Name { get; set; }
 
-        #endregion
-
-        public override string ToString()
-        {
-            var sha = Guid;
-            if (sha.Length > 8)
-            {
-                sha = sha.Substring(0, 4) + ".." + sha.Substring(sha.Length - 4, 4);
-            }
-
-            return string.Format("{0}:{1}{2}", sha, SubjectCount, Subject);
-        }
-
-        public static string ToShortSha(string sha)
-        {
-            if (sha == null)
-            {
-                throw new ArgumentNullException(nameof(sha));
-            }
-
-            const int maxShaLength = 10;
-            if (sha.Length > maxShaLength)
-            {
-                sha = sha.Substring(0, maxShaLength);
-            }
-
-            return sha;
-        }
+        public override string ToString() => $"{ObjectId.ToShortString(8)}:{Subject}";
 
         /// <summary>
         /// Indicates whether the commit is an artificial commit.
         /// </summary>
-        public bool IsArtificial => Guid.IsArtificial();
+        public bool IsArtificial => ObjectId.IsArtificial;
 
-        public bool HasParent => ParentGuids != null && ParentGuids.Length > 0;
+        public bool HasParent => ParentIds?.Count > 0;
 
-        public string FirstParentGuid => HasParent ? ParentGuids[0] : null;
+        [CanBeNull]
+        public ObjectId FirstParentGuid => ParentIds?.FirstOrDefault();
+
+        #region INotifyPropertyChanged
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -120,6 +114,8 @@ namespace GitCommands
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        #endregion
 
         /// <summary>
         /// Returns a value indicating whether <paramref name="id"/> is a valid SHA-1 hash.

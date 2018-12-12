@@ -1,31 +1,35 @@
 using System;
 using System.Collections.Generic;
+using GitUIPluginInterfaces;
 using JetBrains.Annotations;
 
 namespace GitCommands
 {
     public sealed class CommitData
     {
-        public CommitData(string guid,
-            string treeGuid, IReadOnlyList<string> parentGuids,
-            string author, DateTimeOffset authorDate,
-            string committer, DateTimeOffset commitDate,
+        public CommitData(
+            ObjectId objectId,
+            ObjectId treeGuid,
+            IReadOnlyList<ObjectId> parentGuids,
+            string author,
+            DateTime authorDate,
+            string committer,
+            DateTime commitDate,
             string body)
         {
-            Guid = guid;
+            ObjectId = objectId;
             TreeGuid = treeGuid;
             ParentGuids = parentGuids;
             Author = author;
-            AuthorDate = authorDate;
+            AuthorDate = authorDate.ToDateTimeOffset();
             Committer = committer;
-            CommitDate = commitDate;
-
+            CommitDate = commitDate.ToDateTimeOffset();
             Body = body;
         }
 
-        public string Guid { get; }
-        public string TreeGuid { get; }
-        public IReadOnlyList<string> ParentGuids { get; }
+        public ObjectId ObjectId { get; }
+        public ObjectId TreeGuid { get; }
+        public IReadOnlyList<ObjectId> ParentGuids { get; }
         public string Author { get; }
         public DateTimeOffset AuthorDate { get; }
         public string Committer { get; }
@@ -34,7 +38,7 @@ namespace GitCommands
         // TODO mutable properties need review
 
         [CanBeNull, ItemNotNull]
-        public IReadOnlyList<string> ChildrenGuids { get; set; }
+        public IReadOnlyList<ObjectId> ChildIds { get; set; }
 
         /// <summary>
         /// Gets and sets the commit message.

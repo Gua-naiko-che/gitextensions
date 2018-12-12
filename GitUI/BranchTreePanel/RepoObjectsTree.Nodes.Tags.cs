@@ -24,6 +24,11 @@ namespace GitUI.BranchTreePanel
 
             internal override void OnSelected()
             {
+                if (Tree.IgnoreSelectionChangedEvent)
+                {
+                    return;
+                }
+
                 base.OnSelected();
                 SelectRevision();
             }
@@ -35,7 +40,7 @@ namespace GitUI.BranchTreePanel
 
             public void CreateBranch()
             {
-                UICommands.StartCreateBranchDialog(TreeViewNode.TreeView, new GitRevision(_tagInfo.Guid));
+                UICommands.StartCreateBranchDialog(TreeViewNode.TreeView, _tagInfo.ObjectId);
             }
 
             public void Delete()
@@ -46,7 +51,7 @@ namespace GitUI.BranchTreePanel
             protected override void ApplyStyle()
             {
                 base.ApplyStyle();
-                TreeViewNode.ImageKey = TreeViewNode.SelectedImageKey = nameof(MsVsImages.Tag_16x);
+                TreeViewNode.ImageKey = TreeViewNode.SelectedImageKey = nameof(Images.TagHorizontal);
             }
 
             public void Checkout()
@@ -64,10 +69,10 @@ namespace GitUI.BranchTreePanel
             public TagTree(TreeNode treeNode, IGitUICommandsSource uiCommands)
                 : base(treeNode, uiCommands)
             {
-                uiCommands.GitUICommandsChanged += UiCommands_GitUICommandsChanged;
+                uiCommands.UICommandsChanged += OnUICommandsChanged;
             }
 
-            private void UiCommands_GitUICommandsChanged(object sender, GitUICommandsChangedEventArgs e)
+            private void OnUICommandsChanged(object sender, GitUICommandsChangedEventArgs e)
             {
                 if (TreeViewNode?.TreeView == null)
                 {
@@ -87,7 +92,6 @@ namespace GitUI.BranchTreePanel
             private void FillTagTree(IEnumerable<IGitRef> tags, CancellationToken token)
             {
                 var nodes = new Dictionary<string, BaseBranchNode>();
-                var branchFullPaths = new List<string>();
                 foreach (var tag in tags)
                 {
                     token.ThrowIfCancellationRequested();
@@ -98,8 +102,6 @@ namespace GitUI.BranchTreePanel
                     {
                         Nodes.AddNode(parent);
                     }
-
-                    branchFullPaths.Add(branchNode.FullPath);
                 }
             }
 
@@ -107,7 +109,7 @@ namespace GitUI.BranchTreePanel
             {
                 base.FillTreeViewNode();
 
-                TreeViewNode.Text = $@"{Strings.TagsText} ({Nodes.Count})";
+                TreeViewNode.Text = $@"{Strings.Tags} ({Nodes.Count})";
 
                 TreeViewNode.Collapse();
             }

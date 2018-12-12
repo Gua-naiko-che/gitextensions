@@ -18,13 +18,19 @@ namespace GitUI.HelperDialogs
             Hard
         }
 
+        [Obsolete("For VS designer and translation test only. Do not remove.")]
+        private FormResetCurrentBranch()
+        {
+            InitializeComponent();
+        }
+
         public FormResetCurrentBranch(GitUICommands commands, GitRevision revision, ResetType resetType = ResetType.Mixed)
             : base(commands)
         {
             Revision = revision;
 
             InitializeComponent();
-            Translate();
+            InitializeComplete();
 
             switch (resetType)
             {
@@ -67,10 +73,10 @@ namespace GitUI.HelperDialogs
             {
                 if (MessageBox.Show(this, _resetHardWarning.Text, _resetCaption.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.Yes)
                 {
-                    var originalHash = Module.GetCurrentCheckout();
+                    var currentCheckout = Module.GetCurrentCheckout();
                     if (FormProcess.ShowDialog(this, GitCommandHelpers.ResetHardCmd(Revision.Guid)))
                     {
-                        if (!string.Equals(originalHash, Revision.Guid, StringComparison.OrdinalIgnoreCase))
+                        if (currentCheckout != Revision.ObjectId)
                         {
                             UICommands.UpdateSubmodules(this);
                         }

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GitCommands;
 using GitCommands.Utils;
+using JetBrains.Annotations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs
@@ -13,11 +14,17 @@ namespace GitUI.CommandsDialogs
             new TranslationString("Are you sure you want to cleanup the repository?");
         private readonly TranslationString _reallyCleanupQuestionCaption = new TranslationString("Cleanup");
 
+        [Obsolete("For VS designer and translation test only. Do not remove.")]
+        private FormCleanupRepository()
+        {
+            InitializeComponent();
+        }
+
         public FormCleanupRepository(GitUICommands commands)
             : base(commands)
         {
             InitializeComponent();
-            Translate();
+            InitializeComplete();
             PreviewOutput.ReadOnly = true;
             checkBoxPathFilter_CheckedChanged(null, null);
         }
@@ -53,6 +60,7 @@ namespace GitUI.CommandsDialogs
             }
         }
 
+        [CanBeNull]
         private string GetPathArgumentFromGui()
         {
             if (!checkBoxPathFilter.Checked)

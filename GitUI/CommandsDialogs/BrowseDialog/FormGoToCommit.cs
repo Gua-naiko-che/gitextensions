@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GitCommands;
 using GitUIPluginInterfaces;
+using JetBrains.Annotations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs.BrowseDialog
@@ -23,11 +24,17 @@ namespace GitUI.CommandsDialogs.BrowseDialog
         private readonly AsyncLoader _tagsLoader = new AsyncLoader();
         private readonly AsyncLoader _branchesLoader = new AsyncLoader();
 
+        [Obsolete("For VS designer and translation test only. Do not remove.")]
+        private FormGoToCommit()
+        {
+            InitializeComponent();
+        }
+
         public FormGoToCommit(GitUICommands commands)
             : base(commands)
         {
             InitializeComponent();
-            Translate();
+            InitializeComplete();
         }
 
         private void FormGoToCommit_Load(object sender, EventArgs e)
@@ -40,15 +47,10 @@ namespace GitUI.CommandsDialogs.BrowseDialog
         /// <summary>
         /// returns null if revision does not exist (could not be revparsed)
         /// </summary>
-        public string ValidateAndGetSelectedRevision()
+        [CanBeNull]
+        public ObjectId ValidateAndGetSelectedRevision()
         {
-            string guid = Module.RevParse(_selectedRevision);
-            if (!string.IsNullOrEmpty(guid))
-            {
-                return guid;
-            }
-
-            return null;
+            return Module.RevParse(_selectedRevision);
         }
 
         private void commitExpression_TextChanged(object sender, EventArgs e)
@@ -69,12 +71,12 @@ namespace GitUI.CommandsDialogs.BrowseDialog
 
         private void linkGitRevParse_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            Process.Start(@"https://www.kernel.org/pub/software/scm/git/docs/git-rev-parse.html#_specifying_revisions");
+            Process.Start(@"https://git-scm.com/docs/git-rev-parse#_specifying_revisions");
         }
 
         private void LoadTagsAsync()
         {
-            comboBoxTags.Text = Strings.GetLoadingData();
+            comboBoxTags.Text = Strings.LoadingData;
             ThreadHelper.JoinableTaskFactory.RunAsync(() =>
             {
                 return _tagsLoader.LoadAsync(
@@ -91,7 +93,7 @@ namespace GitUI.CommandsDialogs.BrowseDialog
 
         private void LoadBranchesAsync()
         {
-            comboBoxBranches.Text = Strings.GetLoadingData();
+            comboBoxBranches.Text = Strings.LoadingData;
             ThreadHelper.JoinableTaskFactory.RunAsync(() =>
             {
                 return _branchesLoader.LoadAsync(
@@ -209,8 +211,8 @@ namespace GitUI.CommandsDialogs.BrowseDialog
                 return;
             }
 
-            string guid = Module.RevParse(text);
-            if (!string.IsNullOrEmpty(guid))
+            var guid = Module.RevParse(text);
+            if (guid != null)
             {
                 textboxCommitExpression.Text = text;
                 textboxCommitExpression.SelectAll();

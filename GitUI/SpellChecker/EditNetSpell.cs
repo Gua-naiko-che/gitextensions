@@ -21,6 +21,8 @@ namespace GitUI.SpellChecker
     [DefaultEvent("TextChanged")]
     public partial class EditNetSpell : GitModuleControl
     {
+        public event EventHandler TextAssigned;
+
         private readonly TranslationString _cutMenuItemText = new TranslationString("Cut");
         private readonly TranslationString _copyMenuItemText = new TranslationString("Copy");
         private readonly TranslationString _pasteMenuItemText = new TranslationString("Paste");
@@ -56,13 +58,12 @@ namespace GitUI.SpellChecker
 
         public Font TextBoxFont { get; set; }
 
-        public EventHandler TextAssigned;
         public bool IsUndoInProgress;
 
         public EditNetSpell()
         {
             InitializeComponent();
-            Translate();
+            InitializeComplete();
 
             MistakeFont = new Font(TextBox.Font, FontStyle.Underline);
             TextBoxFont = TextBox.Font;
@@ -194,9 +195,7 @@ namespace GitUI.SpellChecker
             set => TextBox.SelectedText = value;
         }
 
-        protected RepoDistSettings Settings => IsUICommandsInitialized ?
-            Module.EffectiveSettings :
-            AppSettings.SettingsContainer;
+        protected RepoDistSettings Settings => Module.EffectiveSettings ?? AppSettings.SettingsContainer;
 
         public void SelectAll()
         {
@@ -210,6 +209,7 @@ namespace GitUI.SpellChecker
             _customUnderlines = new SpellCheckEditControl(TextBox);
             TextBox.SelectionChanged += TextBox_SelectionChanged;
             TextBox.TextChanged += TextBoxTextChanged;
+            TextBox.DoubleClick += TextBox_DoubleClick;
 
             EnabledChanged += EditNetSpellEnabledChanged;
 
@@ -385,13 +385,6 @@ namespace GitUI.SpellChecker
             TextBox.Select(start, length);
         }
 
-        private ToolStripMenuItem AddContextMenuItem(string text, EventHandler eventHandler)
-        {
-            ToolStripMenuItem menuItem = new ToolStripMenuItem(text, null, eventHandler);
-            SpellCheckContextMenu.Items.Add(menuItem);
-            return menuItem;
-        }
-
         private void AddContextMenuSeparator()
         {
             SpellCheckContextMenu.Items.Add(new ToolStripSeparator());
@@ -426,16 +419,13 @@ namespace GitUI.SpellChecker
 
                     foreach (var suggestion in _spelling.Suggestions)
                     {
-                        var si = AddContextMenuItem(suggestion, SuggestionToolStripItemClick);
+                        var si = AddContextMenuItem(suggestion, SuggestionToolStripItemClick, true);
                         si.Font = new Font(si.Font, FontStyle.Bold);
                     }
 
-                    AddContextMenuItem(_addToDictionaryText.Text, AddToDictionaryClick)
-                        .Enabled = _spelling.CurrentWord.Length > 0;
-                    AddContextMenuItem(_ignoreWordText.Text, IgnoreWordClick)
-                        .Enabled = _spelling.CurrentWord.Length > 0;
-                    AddContextMenuItem(_removeWordText.Text, RemoveWordClick)
-                        .Enabled = _spelling.CurrentWord.Length > 0;
+                    AddContextMenuItem(_addToDictionaryText.Text, AddToDictionaryClick, _spelling.CurrentWord.Length > 0);
+                    AddContextMenuItem(_ignoreWordText.Text, IgnoreWordClick, _spelling.CurrentWord.Length > 0);
+                    AddContextMenuItem(_removeWordText.Text, RemoveWordClick, _spelling.CurrentWord.Length > 0);
 
                     if (_spelling.Suggestions.Count > 0)
                     {
@@ -448,15 +438,11 @@ namespace GitUI.SpellChecker
                 Trace.WriteLine(ex);
             }
 
-            AddContextMenuItem(_cutMenuItemText.Text, CutMenuItemClick)
-                .Enabled = TextBox.SelectedText.Length > 0;
-            AddContextMenuItem(_copyMenuItemText.Text, CopyMenuItemdClick)
-                .Enabled = TextBox.SelectedText.Length > 0;
-            AddContextMenuItem(_pasteMenuItemText.Text, PasteMenuItemClick)
-                .Enabled = Clipboard.ContainsText();
-            AddContextMenuItem(_deleteMenuItemText.Text, DeleteMenuItemClick)
-                .Enabled = TextBox.SelectedText.Length > 0;
-            AddContextMenuItem(_selectAllMenuItemText.Text, SelectAllMenuItemClick);
+            AddContextMenuItem(_cutMenuItemText.Text, CutMenuItemClick, TextBox.SelectedText.Length > 0);
+            AddContextMenuItem(_copyMenuItemText.Text, CopyMenuItemdClick, TextBox.SelectedText.Length > 0);
+            AddContextMenuItem(_pasteMenuItemText.Text, PasteMenuItemClick, Clipboard.ContainsText());
+            AddContextMenuItem(_deleteMenuItemText.Text, DeleteMenuItemClick, TextBox.SelectedText.Length > 0);
+            AddContextMenuItem(_selectAllMenuItemText.Text, SelectAllMenuItemClick, true);
 
             /*AddContextMenuSeparator();
 
@@ -522,6 +508,15 @@ namespace GitUI.SpellChecker
                 };
             mi.Click += MarkIllFormedLinesInCommitMsgClick;
             SpellCheckContextMenu.Items.Add(mi);
+
+            return;
+
+            ToolStripMenuItem AddContextMenuItem(string text, EventHandler eventHandler, bool enabled)
+            {
+                var menuItem = new ToolStripMenuItem(text, null, eventHandler);
+                SpellCheckContextMenu.Items.Add(menuItem);
+                return menuItem;
+            }
         }
 
         private void RemoveWordClick(object sender, EventArgs e)
@@ -557,11 +552,9 @@ namespace GitUI.SpellChecker
         private void DicToolStripMenuItemClick(object sender, EventArgs e)
         {
             // if a Module is available, then always change the "repository local" setting
-            // it will set a dictionary only for this Module (repository) localy
+            // it will set a dictionary only for this Module (repository) locally
 
-            var settings = IsUICommandsInitialized
-                ? Module.LocalSettings
-                : Settings;
+            var settings = Module.LocalSettings ?? Settings;
 
             settings.Dictionary = ((ToolStripItem)sender).Text;
             LoadDictionary();
@@ -714,12 +707,19 @@ namespace GitUI.SpellChecker
             handler?.Invoke(sender, e);
         }
 
+        private void TextBox_DoubleClick(object sender, EventArgs e)
+        {
+            int charIndexAtMousePosition = TextBox.GetCharIndexFromPosition(TextBox.PointToClient(MousePosition));
+            (int start, int length) = _wordAtCursorExtractor.GetWordBounds(TextBox.Text, charIndexAtMousePosition);
+            TextBox.Select(start, length);
+        }
+
         private void ShowWatermark()
         {
             if (!ContainsFocus && string.IsNullOrEmpty(TextBox.Text) && TextBoxFont != null)
             {
                 _isWatermarkShowing = true;
-                TextBox.Font = new Font(SystemFonts.MessageBoxFont, FontStyle.Italic);
+                TextBox.Font = new Font(TextBox.Font, FontStyle.Italic);
                 TextBox.ForeColor = SystemColors.InactiveCaption;
                 TextBox.Text = WatermarkText;
             }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -9,7 +10,7 @@ using ResourceManager;
 namespace TeamCityIntegration.Settings
 {
     [Export(typeof(IBuildServerSettingsUserControl))]
-    [BuildServerSettingsUserControlMetadata("TeamCity")]
+    [BuildServerSettingsUserControlMetadata(TeamCityAdapter.PluginName)]
     [PartCreationPolicy(CreationPolicy.NonShared)]
     public partial class TeamCitySettingsUserControl : GitExtensionsControl, IBuildServerSettingsUserControl
     {
@@ -25,12 +26,12 @@ namespace TeamCityIntegration.Settings
         public TeamCitySettingsUserControl()
         {
             InitializeComponent();
-            Translate();
+            InitializeComplete();
 
             Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
         }
 
-        public void Initialize(string defaultProjectName)
+        public void Initialize(string defaultProjectName, IEnumerable<string> remotes)
         {
             _defaultProjectName = defaultProjectName;
             SetChooseBuildButtonState();
@@ -76,7 +77,7 @@ namespace TeamCityIntegration.Settings
                     TeamCityBuildIdFilter.Text = teamCityBuildChooser.TeamCityBuildIdFilter;
                 }
             }
-            catch (Exception)
+            catch
             {
                 MessageBox.Show(this, _failToLoadProjectMessage.Text, _failToLoadProjectCaption.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

@@ -4,8 +4,9 @@
     {
         public static bool IsArtificial(this string sha1)
         {
-            return sha1 == GitRevision.UnstagedGuid ||
-                   sha1 == GitRevision.IndexGuid;
+            return sha1 == GitRevision.WorkTreeGuid ||
+                   sha1 == GitRevision.IndexGuid ||
+                   sha1 == GitRevision.CombinedDiffGuid;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using JetBrains.Annotations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs
@@ -12,19 +13,28 @@ namespace GitUI.CommandsDialogs
         private readonly TranslationString _cannotOpenFile = new TranslationString("Cannot open file:");
         private readonly TranslationString _cannotSaveFile = new TranslationString("Cannot save file:");
         private readonly TranslationString _error = new TranslationString("Error");
-        private bool _hasChanges;
-        private string _fileName;
 
-        public FormEditor(GitUICommands commands, string fileName, bool showWarning)
-            : base(commands)
+        [CanBeNull] private readonly string _fileName;
+
+        private bool _hasChanges;
+
+        [Obsolete("For VS designer and translation test only. Do not remove.")]
+        private FormEditor()
         {
             InitializeComponent();
-            Translate();
+        }
+
+        public FormEditor([NotNull] GitUICommands commands, [CanBeNull] string fileName, bool showWarning)
+            : base(commands)
+        {
+            _fileName = fileName;
+            InitializeComponent();
+            InitializeComplete();
 
             // for translation form
-            if (fileName != null)
+            if (_fileName != null)
             {
-                OpenFile(fileName);
+                OpenFile();
             }
 
             fileViewer.TextChanged += (s, e) => HasChanges = true;
@@ -42,11 +52,10 @@ namespace GitUI.CommandsDialogs
             }
         }
 
-        private void OpenFile(string fileName)
+        private void OpenFile()
         {
             try
             {
-                _fileName = fileName;
                 fileViewer.ViewFileAsync(_fileName);
                 fileViewer.IsReadOnly = false;
                 fileViewer.SetVisibilityDiffContextMenu(false, false);
@@ -58,7 +67,6 @@ namespace GitUI.CommandsDialogs
             catch (Exception ex)
             {
                 MessageBox.Show(this, _cannotOpenFile.Text + Environment.NewLine + ex.Message, _error.Text);
-                _fileName = string.Empty;
                 Close();
             }
         }

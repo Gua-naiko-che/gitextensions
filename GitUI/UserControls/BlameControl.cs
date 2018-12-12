@@ -5,9 +5,11 @@ using System.Globalization;
 using System.Text;
 using System.Windows.Forms;
 using GitCommands;
+using GitExtUtils;
 using GitUI.CommitInfo;
 using GitUI.Editor;
 using GitUI.HelperDialogs;
+using GitUIPluginInterfaces;
 using JetBrains.Annotations;
 
 namespace GitUI.Blame
@@ -22,8 +24,8 @@ namespace GitUI.Blame
         [CanBeNull] private GitBlameLine _clickedBlameLine;
         private GitBlameCommit _highlightedCommit;
         private GitBlame _blame;
-        private RevisionGrid _revGrid;
-        private string _blameHash;
+        private RevisionGridControl _revGrid;
+        [CanBeNull] private ObjectId _blameId;
         private string _fileName;
         private Encoding _encoding;
         private int _lastTooltipX = -100;
@@ -34,7 +36,7 @@ namespace GitUI.Blame
         public BlameControl()
         {
             InitializeComponent();
-            Translate();
+            InitializeComplete();
 
             BlameCommitter.IsReadOnly = true;
             BlameCommitter.EnableScrollBars(false);
@@ -51,24 +53,24 @@ namespace GitUI.Blame
             BlameFile.RequestDiffView += ActiveTextAreaControlDoubleClick;
             BlameFile.MouseMove += BlameFile_MouseMove;
 
-            CommitInfo.CommandClick += commitInfo_CommandClick;
+            CommitInfo.CommandClicked += commitInfo_CommandClicked;
         }
 
-        public void LoadBlame(GitRevision revision, IReadOnlyList<string> children, string fileName, RevisionGrid revGrid, Control controlToMask, Encoding encoding, int? initialLine = null, bool force = false)
+        public void LoadBlame(GitRevision revision, [CanBeNull] IReadOnlyList<ObjectId> children, string fileName, RevisionGridControl revGrid, Control controlToMask, Encoding encoding, int? initialLine = null, bool force = false)
         {
-            string guid = revision.Guid;
+            var objectId = revision.ObjectId;
 
             // refresh only when something changed
-            if (!force && guid == _blameHash && fileName == _fileName && revGrid == _revGrid && encoding == _encoding)
+            if (!force && objectId == _blameId && fileName == _fileName && revGrid == _revGrid && encoding == _encoding)
             {
                 return;
             }
 
             controlToMask?.Mask();
 
-            var scrollpos = BlameFile.ScrollPos;
+            var scrollPos = BlameFile.ScrollPos;
 
-            var line = _clickedBlameLine != null && _clickedBlameLine.Commit.ObjectId == guid
+            var line = _clickedBlameLine != null && _clickedBlameLine.Commit.ObjectId == objectId
                 ? _clickedBlameLine.OriginLineNumber
                 : initialLine ?? 0;
 
@@ -76,11 +78,11 @@ namespace GitUI.Blame
             _fileName = fileName;
             _encoding = encoding;
 
-            _blameLoader.LoadAsync(() => _blame = Module.Blame(fileName, guid, encoding),
-                () => ProcessBlame(revision, children, controlToMask, line, scrollpos));
+            _blameLoader.LoadAsync(() => _blame = Module.Blame(fileName, objectId.ToString(), encoding),
+                () => ProcessBlame(revision, children, controlToMask, line, scrollPos));
         }
 
-        private void commitInfo_CommandClick(object sender, CommandEventArgs e)
+        private void commitInfo_CommandClicked(object sender, CommandEventArgs e)
         {
             CommandClick?.Invoke(sender, e);
         }
@@ -226,7 +228,7 @@ namespace GitUI.Blame
             if (rect.Contains(MousePosition))
             {
                 Point p = BlameCommitter.PointToClient(MousePosition);
-                MouseEventArgs me = new MouseEventArgs(0, 0, p.X, p.Y, 0);
+                var me = new MouseEventArgs(0, 0, p.X, p.Y, 0);
                 BlameCommitter_MouseMove(null, me);
             }
         }
@@ -243,7 +245,7 @@ namespace GitUI.Blame
             _changingScrollPosition = false;
         }
 
-        private void ProcessBlame(GitRevision revision, IReadOnlyList<string> children, Control controlToMask, int lineNumber, int scrollpos)
+        private void ProcessBlame(GitRevision revision, IReadOnlyList<ObjectId> children, Control controlToMask, int lineNumber, int scrollpos)
         {
             var gutter = new StringBuilder(capacity: 4096);
             var body = new StringBuilder(capacity: 4096);
@@ -276,8 +278,10 @@ namespace GitUI.Blame
                 lastCommit = line.Commit;
             }
 
-            BlameCommitter.ViewTextAsync("committer.txt", gutter.ToString());
-            BlameFile.ViewTextAsync(_fileName, body.ToString());
+            ThreadHelper.JoinableTaskFactory.RunAsync(
+                () => BlameCommitter.ViewTextAsync("committer.txt", gutter.ToString()));
+            ThreadHelper.JoinableTaskFactory.RunAsync(
+                () => BlameFile.ViewTextAsync(_fileName, body.ToString()));
 
             if (lineNumber > 0)
             {
@@ -290,7 +294,7 @@ namespace GitUI.Blame
 
             _clickedBlameLine = null;
 
-            _blameHash = revision.Guid;
+            _blameId = revision.ObjectId;
             CommitInfo.SetRevisionWithChildren(revision, children);
 
             controlToMask?.UnMask();
@@ -363,7 +367,7 @@ namespace GitUI.Blame
                 return;
             }
 
-            Clipboard.SetText(commit.Summary);
+            ClipboardUtil.TrySetText(commit.Summary);
         }
 
         private void blamePreviousRevisionToolStripMenuItem_Click(object sender, EventArgs e)
@@ -374,9 +378,9 @@ namespace GitUI.Blame
                 return;
             }
 
-            string commit = _blame.Lines[line].Commit.ObjectId;
+            var objectId = _blame.Lines[line].Commit.ObjectId;
             int originalLine = _blame.Lines[line].OriginLineNumber;
-            GitBlame blame = Module.Blame(_fileName, commit + "^", _encoding, originalLine + ",+1");
+            GitBlame blame = Module.Blame(_fileName, objectId + "^", _encoding, originalLine + ",+1");
             if (blame.Lines.Count > 0)
             {
                 var revision = blame.Lines[0].Commit.ObjectId;
@@ -414,11 +418,7 @@ namespace GitUI.Blame
         {
             if (disposing)
             {
-                if (components != null)
-                {
-                    components.Dispose();
-                }
-
+                components?.Dispose();
                 _blameLoader.Dispose();
             }
 

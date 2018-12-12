@@ -1,26 +1,26 @@
 ﻿using System;
 using System.Drawing;
 using System.Globalization;
+using JetBrains.Annotations;
 
 namespace GitUIPluginInterfaces
 {
     public abstract class ISettingsSource
     {
-        public abstract T GetValue<T>(string name, T defaultValue, Func<string, T> decode);
+        public abstract T GetValue<T>([NotNull] string name, T defaultValue, [NotNull] Func<string, T> decode);
 
-        public abstract void SetValue<T>(string name, T value, Func<T, string> encode);
+        public abstract void SetValue<T>([NotNull] string name, T value, [NotNull] Func<T, string> encode);
 
-        public bool? GetBool(string name)
+        public bool? GetBool([NotNull] string name)
         {
             return GetValue<bool?>(name, null, x =>
             {
-                var val = x.ToString().ToLower();
-                if (val == "true")
+                if (string.Equals(x, "true", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
 
-                if (val == "false")
+                if (string.Equals(x, "false", StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -29,22 +29,22 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public bool GetBool(string name, bool defaultValue)
+        public bool GetBool([NotNull] string name, bool defaultValue)
         {
             return GetBool(name) ?? defaultValue;
         }
 
-        public void SetBool(string name, bool? value)
+        public void SetBool([NotNull] string name, bool? value)
         {
             SetValue(name, value, b => b.HasValue ? (b.Value ? "true" : "false") : null);
         }
 
-        public void SetInt(string name, int? value)
+        public void SetInt([NotNull] string name, int? value)
         {
             SetValue(name, value, b => b.HasValue ? b.ToString() : null);
         }
 
-        public int? GetInt(string name)
+        public int? GetInt([NotNull] string name)
         {
             return GetValue<int?>(name, null, x =>
             {
@@ -57,12 +57,12 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public void SetFloat(string name, float? value)
+        public void SetFloat([NotNull] string name, float? value)
         {
             SetValue(name, value, b => b.HasValue ? b.ToString() : null);
         }
 
-        public float? GetFloat(string name)
+        public float? GetFloat([NotNull] string name)
         {
             return GetValue<float?>(name, null, x =>
             {
@@ -75,17 +75,17 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public DateTime GetDate(string name, DateTime defaultValue)
+        public DateTime GetDate([NotNull] string name, DateTime defaultValue)
         {
             return GetDate(name) ?? defaultValue;
         }
 
-        public void SetDate(string name, DateTime? value)
+        public void SetDate([NotNull] string name, DateTime? value)
         {
             SetValue(name, value, b => b?.ToString("yyyy/M/dd", CultureInfo.InvariantCulture));
         }
 
-        public DateTime? GetDate(string name)
+        public DateTime? GetDate([NotNull] string name)
         {
             return GetValue<DateTime?>(name, null, x =>
             {
@@ -98,42 +98,42 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public int GetInt(string name, int defaultValue)
+        public int GetInt([NotNull] string name, int defaultValue)
         {
             return GetInt(name) ?? defaultValue;
         }
 
-        public void SetFont(string name, Font value)
+        public void SetFont([NotNull] string name, Font value)
         {
             SetValue(name, value, x => x.AsString());
         }
 
-        public Font GetFont(string name, Font defaultValue)
+        public Font GetFont([NotNull] string name, Font defaultValue)
         {
             return GetValue(name, defaultValue, x => x.Parse(defaultValue));
         }
 
-        public void SetColor(string name, Color? value)
+        public void SetColor([NotNull] string name, Color? value)
         {
             SetValue(name, value, x => x.HasValue ? ColorTranslator.ToHtml(x.Value) : null);
         }
 
-        public Color? GetColor(string name)
+        public Color? GetColor([NotNull] string name)
         {
             return GetValue<Color?>(name, null, x => ColorTranslator.FromHtml(x));
         }
 
-        public Color GetColor(string name, Color defaultValue)
+        public Color GetColor([NotNull] string name, Color defaultValue)
         {
             return GetColor(name) ?? defaultValue;
         }
 
-        public void SetEnum<T>(string name, T value)
+        public void SetEnum<T>([NotNull] string name, T value)
         {
             SetValue(name, value, x => x.ToString());
         }
 
-        public T GetEnum<T>(string name, T defaultValue) where T : struct
+        public T GetEnum<T>([NotNull] string name, T defaultValue) where T : struct, Enum
         {
             return GetValue(name, defaultValue, x =>
             {
@@ -148,12 +148,12 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public void SetNullableEnum<T>(string name, T? value) where T : struct
+        public void SetNullableEnum<T>([NotNull] string name, T? value) where T : struct, Enum
         {
             SetValue(name, value, x => x.HasValue ? x.ToString() : string.Empty);
         }
 
-        public T? GetNullableEnum<T>(string name) where T : struct
+        public T? GetNullableEnum<T>([NotNull] string name) where T : struct
         {
             return GetValue<T?>(name, null, x =>
             {
@@ -173,60 +173,14 @@ namespace GitUIPluginInterfaces
             });
         }
 
-        public void SetString(string name, string value)
+        public void SetString([NotNull] string name, [CanBeNull] string value)
         {
             SetValue(name, value, s => string.IsNullOrEmpty(s) ? null : s);
         }
 
-        public string GetString(string name, string defaultValue)
+        public string GetString([NotNull] string name, string defaultValue)
         {
             return GetValue(name, defaultValue, x => x);
-        }
-    }
-
-    public static class FontParser
-    {
-        private const string InvariantCultureId = "_IC_";
-
-        public static string AsString(this Font value)
-        {
-            return string.Format(CultureInfo.InvariantCulture,
-                "{0};{1};{2}", value.FontFamily.Name, value.Size, InvariantCultureId);
-        }
-
-        public static Font Parse(this string value, Font defaultValue)
-        {
-            if (value == null)
-            {
-                return defaultValue;
-            }
-
-            string[] parts = value.Split(';');
-
-            if (parts.Length < 2)
-            {
-                return defaultValue;
-            }
-
-            try
-            {
-                string fontSize;
-                if (parts.Length == 3 && parts[2] == InvariantCultureId)
-                {
-                    fontSize = parts[1];
-                }
-                else
-                {
-                    fontSize = parts[1].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator);
-                    fontSize = fontSize.Replace(".", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator);
-                }
-
-                return new Font(parts[0], float.Parse(fontSize, CultureInfo.InvariantCulture));
-            }
-            catch (Exception)
-            {
-                return defaultValue;
-            }
         }
     }
 }

@@ -2,74 +2,72 @@
 using System.ComponentModel;
 using System.Windows.Forms;
 using GitCommands;
+using GitUI.Script;
+using JetBrains.Annotations;
 
 namespace GitUI
 {
-    /// <summary>Base class for a <see cref="Form"/> requiring
-    /// <see cref="GitModule"/> and <see cref="GitUICommands"/>.</summary>
+    // NOTE do not make this class abstract as it breaks the WinForms designer in VS
+
+    /// <summary>Base <see cref="Form"/> that provides access to <see cref="GitModule"/> and <see cref="GitUICommands"/>.</summary>
     public class GitModuleForm : GitExtensionsForm, IGitUICommandsSource
     {
-        private GitUICommands _uiCommands;
+        /// <inheritdoc />
+        public event EventHandler<GitUICommandsChangedEventArgs> UICommandsChanged;
 
-        /// <summary>Gets a <see cref="GitUICommands"/> reference.</summary>
+        /// <summary>
+        /// Indicates that the process is run by unit tests runner.
+        /// </summary>
+        internal static bool IsUnitTestActive { get; set; }
+
+        [CanBeNull] private GitUICommands _uiCommands;
+
+        /// <inheritdoc />
         [Browsable(false)]
         public GitUICommands UICommands
         {
             get
             {
-                if (_uiCommands == null)
-                {
-                    throw new InvalidOperationException("UICommands is null");
-                }
-
-                return _uiCommands;
+                // If this exception is seen, it's because the parameterless constructor was called.
+                // That constructor is only for use by the VS designer, and translation unit tests.
+                // Using it at run time is an error.
+                return _uiCommands
+                       ?? throw new InvalidOperationException(
+                           $"{nameof(UICommands)} is null. {GetType().FullName} was constructed incorrectly.");
             }
-
             protected set
             {
-                GitUICommands oldCommands = _uiCommands;
-                _uiCommands = value;
-                GitUICommandsChanged?.Invoke(this, new GitUICommandsChangedEventArgs(oldCommands));
+                var oldCommands = _uiCommands;
+                _uiCommands = value ?? throw new ArgumentNullException(nameof(value));
+                UICommandsChanged?.Invoke(this, new GitUICommandsChangedEventArgs(oldCommands));
             }
         }
 
-        /// <summary>true if <see cref="UICommands"/> has been initialized.</summary>
-        public bool IsUICommandsInitialized => _uiCommands != null;
-
         /// <summary>Gets a <see cref="GitModule"/> reference.</summary>
+        [NotNull]
         [Browsable(false)]
-        public GitModule Module => _uiCommands?.Module;
+        public GitModule Module => UICommands.Module;
 
-        public event EventHandler<GitUICommandsChangedEventArgs> GitUICommandsChanged;
-
+        [Obsolete("For VS designer and translation test only. Do not remove.")]
         protected GitModuleForm()
         {
+            if (LicenseManager.UsageMode != LicenseUsageMode.Designtime && !IsUnitTestActive)
+            {
+                throw new InvalidOperationException(
+                    "This constructor is only to be called by the Visual Studio designer, and the translation unit tests.");
+            }
         }
 
-        public GitModuleForm(GitUICommands commands)
-            : this(true, commands)
+        protected GitModuleForm([NotNull] GitUICommands commands)
+            : base(enablePositionRestore: true)
         {
-        }
-
-        public GitModuleForm(bool enablePositionRestore, GitUICommands commands)
-            : base(enablePositionRestore)
-        {
-            UICommands = commands;
+            _uiCommands = commands;
         }
 
         protected override bool ExecuteCommand(int command)
         {
-            if (ExecuteScriptCommand(command))
-            {
-                return true;
-            }
-
-            return base.ExecuteCommand(command);
-        }
-
-        protected bool ExecuteScriptCommand(int command)
-        {
-            return Script.ScriptRunner.ExecuteScriptCommand(this, Module, command);
+            return ScriptRunner.ExecuteScriptCommand(this, Module, command)
+                || base.ExecuteCommand(command);
         }
     }
 }

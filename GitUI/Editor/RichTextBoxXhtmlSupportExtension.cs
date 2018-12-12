@@ -356,11 +356,6 @@ namespace GitUI.Editor.RichTextBoxExtension
         }
         #endregion
 
-        internal static void SetHideSelectionInternal(HandleRef handleRef, bool bSet)
-        {
-            NativeMethods.SendMessage(handleRef, NativeMethods.EM_HIDESELECTION, bSet ? (IntPtr)1 : (IntPtr)0, IntPtr.Zero);
-        }
-
         public static void SetSuperScript(this RichTextBox rtb, bool bSet)
         {
             rtb.SetCharFormat(CFM.SUPERSCRIPT, bSet ? CFE.SUPERSCRIPT : 0);
@@ -410,6 +405,43 @@ namespace GitUI.Editor.RichTextBoxExtension
             rtb.Select(position + length, 0);
         }
 
+        private static void RtbSetSelectedRtf(RichTextBox rtb, string str)
+        {
+            // Work around bug in DotNet.
+            // Basically it assumes that incoming text is always in the default
+            // encoding so giving it a unicode string throws an exception.
+            // (Bug #5005)
+            try
+            {
+                rtb.SelectedRtf = str;
+            }
+            catch (ArgumentException)
+            {
+                // NOTE: This will break any text which actually contains UTF-8 characters!
+                if (str.StartsWith(@"{\urtf"))
+                {
+                    // Convert "urtf" -> "rtf"
+                    str = str.Remove(2, 1);
+
+                    // Encode unicode characters
+                    var sb = new StringBuilder();
+                    foreach (var c in str)
+                    {
+                        if (c < 0x7f)
+                        {
+                            sb.Append(c);
+                        }
+                        else
+                        {
+                            sb.Append(@"\u" + Convert.ToUInt32(c) + "?");
+                        }
+                    }
+
+                    rtb.SelectedRtf = sb.ToString();
+                }
+            }
+        }
+
         private static void AddLink(this RichTextBox rtb, string text, string hyperlink)
         {
             int position = rtb.SelectionStart;
@@ -428,10 +460,12 @@ namespace GitUI.Editor.RichTextBoxExtension
             {
                 string head = rtfText.Substring(0, idx);
                 string tail = rtfText.Substring(idx);
-                rtb.SelectedRtf = head + @"\v #" + hyperlink + @"\v0" + tail;
+                RtbSetSelectedRtf(rtb, head + @"\v #" + hyperlink + @"\v0" + tail);
             }
 
-            rtb.SelectedRtf = ("{\rtf1\ansi " + text + "\v #") + hyperlink + "\v0}";
+            // What if 'text' or 'hyperlink' contain UTF characters? Shouldn't we either use \urtf or recode the text?
+            // Also, aren't we overwriting what we set above?
+            RtbSetSelectedRtf(rtb, (@"{\rtf1\ansi\ansicpg65001 " + text + @"\v #") + hyperlink + @"\v0}");
             rtb.Select(position, text.Length + hyperlink.Length + 1);
             rtb.SetLink(true);
             rtb.Select(position + text.Length + hyperlink.Length + 1, 0);
@@ -439,7 +473,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         private static PARAFORMAT GetParaFormat(HandleRef handleRef)
         {
-            PARAFORMAT pf = new PARAFORMAT();
+            var pf = new PARAFORMAT();
             pf.cbSize = Marshal.SizeOf(pf);
 
             // Get the alignment.
@@ -474,7 +508,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         private static PARAFORMAT GetDefaultParaFormat(HandleRef handleRef)
         {
-            PARAFORMAT pf = new PARAFORMAT();
+            var pf = new PARAFORMAT();
             pf.cbSize = Marshal.SizeOf(pf);
 
             // Get the alignment.
@@ -509,7 +543,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         private static CHARFORMAT GetCharFormat(HandleRef handleRef)
         {
-            CHARFORMAT cf = new CHARFORMAT();
+            var cf = new CHARFORMAT();
             cf.cbSize = Marshal.SizeOf(cf);
 
             // Get the alignment.
@@ -544,13 +578,13 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         public static void SetCharFormat(this RichTextBox rtb, CFM mask, CFE effects)
         {
-            CHARFORMAT cf = new CHARFORMAT(mask, effects);
+            var cf = new CHARFORMAT(mask, effects);
             rtb.SetCharFormat(cf);
         }
 
         private static CHARFORMAT GetDefaultCharFormat(HandleRef handleRef)
         {
-            CHARFORMAT cf = new CHARFORMAT();
+            var cf = new CHARFORMAT();
             cf.cbSize = Marshal.SizeOf(cf);
 
             // Get the alignment.
@@ -585,13 +619,13 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         public static void SetDefaultCharFormat(this RichTextBox rtb, CFM mask, CFE effects)
         {
-            CHARFORMAT cf = new CHARFORMAT(mask, effects);
+            var cf = new CHARFORMAT(mask, effects);
             rtb.SetDefaultCharFormat(cf);
         }
 
         private static Point GetScrollPoint(HandleRef handleRef)
         {
-            Point scrollPoint = new Point();
+            var scrollPoint = new Point();
             NativeMethods.SendMessage(handleRef, NativeMethods.EM_GETSCROLLPOS, IntPtr.Zero, ref scrollPoint);
             return scrollPoint;
         }
@@ -613,14 +647,14 @@ namespace GitUI.Editor.RichTextBoxExtension
             SetScrollPoint(handleRef, scrollPoint);
         }
 
-        #region COLORREF helper functions
+#region COLORREF helper functions
 
         // convert COLORREF to Color
         private static Color GetColor(int crColor)
         {
-            byte r = (byte)crColor;
-            byte g = (byte)(crColor >> 8);
-            byte b = (byte)(crColor >> 16);
+            var r = (byte)crColor;
+            var g = (byte)(crColor >> 8);
+            var b = (byte)(crColor >> 16);
 
             return Color.FromArgb(r, g, b);
         }
@@ -645,7 +679,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
             return GetCOLORREF(r, g, b);
         }
-        #endregion
+#endregion
 
         public static string GetUrl(this LinkClickedEventArgs e)
         {
@@ -690,7 +724,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         public static string GetXHTMLText(this RichTextBox rtb, bool bParaFormat)
         {
-            StringBuilder strHTML = new StringBuilder();
+            var strHTML = new StringBuilder();
 
             rtb.HideSelection = true;
             IntPtr oldMask = rtb.BeginUpdate();
@@ -738,7 +772,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
         private static string ProcessTags(RichTextBox rtb, List<KeyValuePair<int, string>> colFormat, bool bParaFormat)
         {
-            StringBuilder sbT = new StringBuilder();
+            var sbT = new StringBuilder();
 
             ctformatStates bold = ctformatStates.nctNone;
             ctformatStates bitalic = ctformatStates.nctNone;
@@ -1058,14 +1092,29 @@ namespace GitUI.Editor.RichTextBoxExtension
             }
         }
 
-        public static string GetPlaintText(this RichTextBox rtb)
+        public static string GetPlainText(this RichTextBox rtb)
         {
+            return GetPlainText(rtb, 0, rtb.TextLength);
+        }
+
+        public static string GetSelectionPlainText(this RichTextBox rtb)
+        {
+            return GetPlainText(rtb, rtb.SelectionStart, rtb.SelectionStart + rtb.SelectionLength);
+        }
+
+        public static string GetPlainText(this RichTextBox rtb, int from, int to)
+        {
+            if (to == 0)
+            {
+                return string.Empty;
+            }
+
             ////rtb.HideSelection = true;
             IntPtr oldMask = rtb.BeginUpdate();
 
             int nStart = rtb.SelectionStart;
             int nEnd = rtb.SelectionLength;
-            StringBuilder text = new StringBuilder();
+            var text = new StringBuilder();
 
             try
             {
@@ -1074,7 +1123,7 @@ namespace GitUI.Editor.RichTextBoxExtension
                 // but RichTextBox doesn't provide another method to
                 // get something like an array of charformat and paraformat
                 //--------------------------------
-                for (int i = 0; i < rtb.TextLength; i++)
+                for (int i = from; i < to; i++)
                 {
                     // select one character
                     rtb.Select(i, 1);
@@ -1109,7 +1158,7 @@ namespace GitUI.Editor.RichTextBoxExtension
         /// </summary>
         private static string EscapeNonXMLChars(string input)
         {
-            StringBuilder result = new StringBuilder();
+            var result = new StringBuilder();
             foreach (char ch in input)
             {
                 if (XmlConvert.IsXmlChar(ch))
@@ -1159,14 +1208,13 @@ namespace GitUI.Editor.RichTextBoxExtension
         public static void SetXHTMLText(this RichTextBox rtb, string xhtmlText)
         {
             rtb.Clear();
-            RTFCurrentState cs = new RTFCurrentState();
+            var cs = new RTFCurrentState();
 
             var handleRef = new HandleRef(rtb, rtb.Handle);
             cs.cf = GetDefaultCharFormat(handleRef); // to apply character formatting
             cs.pf = GetDefaultParaFormat(handleRef); // to apply paragraph formatting
 
             IntPtr oldMask = BeginUpdate(handleRef);
-            SetHideSelectionInternal(handleRef, true);
 
             var settings = new XmlReaderSettings
             {
@@ -1176,7 +1224,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
             try
             {
-                using (StringReader stringreader = new StringReader(EscapeNonXMLChars(xhtmlText)))
+                using (var stringreader = new StringReader(EscapeNonXMLChars(xhtmlText)))
                 {
                     XmlReader reader = XmlReader.Create(stringreader, settings);
                     while (reader.Read())
@@ -1191,15 +1239,13 @@ namespace GitUI.Editor.RichTextBoxExtension
             }
 
             // apply links style
-            CHARFORMAT ncf = new CHARFORMAT(CFM.LINK, CFE.LINK);
+            var ncf = new CHARFORMAT(CFM.LINK, CFE.LINK);
             ncf.cbSize = Marshal.SizeOf(ncf);
             foreach (var (start, length) in cs.links)
             {
                 rtb.Select(start, length);
                 SetCharFormat(handleRef, ncf);
             }
-
-            SetHideSelectionInternal(handleRef, false);
 
             // reposition to first
             rtb.Select(0, 0);
@@ -1450,7 +1496,7 @@ namespace GitUI.Editor.RichTextBoxExtension
                             {
                                 string head = rtfText.Substring(0, idx);
                                 string tail = rtfText.Substring(idx);
-                                rtb.SelectedRtf = head + @"\v #" + cs.hyperlink + @"\v0" + tail;
+                                RtbSetSelectedRtf(rtb, head + @"\v #" + cs.hyperlink + @"\v0" + tail);
                                 length = rtb.TextLength - cs.hyperlinkStart;
                             }
                         }
@@ -1488,7 +1534,7 @@ namespace GitUI.Editor.RichTextBoxExtension
 
             try
             {
-                using (StringReader strReader = new StringReader(xhtmlText))
+                using (var strReader = new StringReader(xhtmlText))
                 {
                     XmlReader reader = XmlReader.Create(strReader, settings);
                     while (reader.Read())

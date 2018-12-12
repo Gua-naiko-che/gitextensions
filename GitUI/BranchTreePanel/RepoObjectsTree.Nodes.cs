@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitCommands;
+using JetBrains.Annotations;
 
 namespace GitUI.BranchTreePanel
 {
     partial class RepoObjectsTree
     {
-        private sealed class Nodes
+        private sealed class Nodes : IEnumerable<Node>
         {
-            public readonly Tree Tree;
-            private readonly IList<Node> _nodesList = new List<Node>();
+            private readonly List<Node> _nodesList = new List<Node>();
+
+            public Tree Tree { get; }
 
             public Nodes(Tree tree)
             {
@@ -29,11 +32,9 @@ namespace GitUI.BranchTreePanel
                 _nodesList.Clear();
             }
 
-            public IEnumerator<Node> GetEnumerator()
-            {
-                var e = _nodesList.GetEnumerator();
-                return e;
-            }
+            public IEnumerator<Node> GetEnumerator() => _nodesList.GetEnumerator();
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
             /// <summary>
             /// Returns all nodes of a given TNode type using depth-first, pre-order method
@@ -47,9 +48,9 @@ namespace GitUI.BranchTreePanel
                         yield return node1;
                     }
 
-                    foreach (var subnode in node.Nodes.DepthEnumerator<TNode>())
+                    foreach (var subNode in node.Nodes.DepthEnumerator<TNode>())
                     {
-                        yield return subnode;
+                        yield return subNode;
                     }
                 }
             }
@@ -99,9 +100,6 @@ namespace GitUI.BranchTreePanel
         {
             protected readonly Nodes Nodes;
             private readonly IGitUICommandsSource _uiCommandsSource;
-            public GitUICommands UICommands => _uiCommandsSource.UICommands;
-            protected GitModule Module => UICommands.Module;
-            public TreeNode TreeViewNode { get; }
 
             protected Tree(TreeNode treeNode, IGitUICommandsSource uiCommands)
             {
@@ -109,6 +107,16 @@ namespace GitUI.BranchTreePanel
                 _uiCommandsSource = uiCommands;
                 TreeViewNode = treeNode;
             }
+
+            public TreeNode TreeViewNode { get; }
+            public GitUICommands UICommands => _uiCommandsSource.UICommands;
+
+            /// <summary>
+            /// A flag to indicate that node SelectionChanged event is not user-originated and
+            /// must not trigger the event handling sequence.
+            /// </summary>
+            public bool IgnoreSelectionChangedEvent { get; set; }
+            protected GitModule Module => UICommands.Module;
 
             public async Task ReloadAsync(CancellationToken token)
             {
@@ -171,6 +179,7 @@ namespace GitUI.BranchTreePanel
                 {
                     _treeViewNode = value;
                     _treeViewNode.Tag = this;
+                    _treeViewNode.Name = DisplayText();
                     _treeViewNode.Text = DisplayText();
                     _treeViewNode.ContextMenuStrip = GetContextMenuStrip();
                     ApplyStyle();
@@ -192,12 +201,14 @@ namespace GitUI.BranchTreePanel
                 DefaultContextMenus.Add(type, menu);
             }
 
+            [CanBeNull]
             protected virtual ContextMenuStrip GetContextMenuStrip()
             {
                 DefaultContextMenus.TryGetValue(GetType(), out var result);
                 return result;
             }
 
+            [CanBeNull]
             protected IWin32Window ParentWindow()
             {
                 return TreeViewNode.TreeView.FindForm();
@@ -208,9 +219,37 @@ namespace GitUI.BranchTreePanel
                 return ToString();
             }
 
+            protected void SetNodeFont(FontStyle style)
+            {
+                if (style == FontStyle.Regular)
+                {
+                    // For regular, set to null to use the NativeTreeView font
+                    if (TreeViewNode.NodeFont != null)
+                    {
+                        TreeViewNode.NodeFont.Dispose();
+                        TreeViewNode.NodeFont = null;
+                    }
+                }
+                else
+                {
+                    // If current font doesn't have the input style, get rid of it
+                    if (TreeViewNode.NodeFont != null && !TreeViewNode.NodeFont.Style.HasFlag(style))
+                    {
+                        TreeViewNode.NodeFont.Dispose();
+                        TreeViewNode.NodeFont = null;
+                    }
+
+                    // If non-null, our font is already valid, otherwise create a new one
+                    if (TreeViewNode.NodeFont == null)
+                    {
+                        TreeViewNode.NodeFont = new Font(AppSettings.Font, style);
+                    }
+                }
+            }
+
             protected virtual void ApplyStyle()
             {
-                TreeViewNode.NodeFont = AppSettings.Font;
+                SetNodeFont(FontStyle.Regular);
             }
 
             internal virtual void OnSelected()
@@ -230,7 +269,8 @@ namespace GitUI.BranchTreePanel
                 return (Node)treeNode.Tag;
             }
 
-            private static T GetNodeSafe<T>(TreeNode treeNode) where T : Node
+            [CanBeNull]
+            private static T GetNodeSafe<T>([CanBeNull] TreeNode treeNode) where T : Node
             {
                 return treeNode?.Tag as T;
             }
@@ -238,12 +278,11 @@ namespace GitUI.BranchTreePanel
             public static void OnNode<T>(TreeNode treeNode, Action<T> action) where T : Node
             {
                 var node = GetNodeSafe<T>(treeNode);
-                if (node == null)
-                {
-                    return;
-                }
 
-                action(node);
+                if (node != null)
+                {
+                    action(node);
+                }
             }
         }
     }

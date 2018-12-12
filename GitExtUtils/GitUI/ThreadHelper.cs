@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -64,6 +65,18 @@ namespace GitUI
             }
         }
 
+        [Conditional("DEBUG")]
+        [DebuggerStepThrough]
+        public static void AssertOnUIThread()
+        {
+            if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+            {
+                return;
+            }
+
+            Debug.Assert(JoinableTaskContext.IsOnMainThread, "Must be on the UI thread.");
+        }
+
         public static void ThrowIfOnUIThread([CallerMemberName] string callerMemberName = "")
         {
             if (JoinableTaskContext.IsOnMainThread)
@@ -120,7 +133,7 @@ namespace GitUI
         {
             if (!task.IsCompleted)
             {
-                return default(T);
+                return default;
             }
 
 #pragma warning disable VSTHRD002 // Avoid problematic synchronous waits

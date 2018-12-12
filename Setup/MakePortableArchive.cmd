@@ -1,4 +1,8 @@
 @echo off
+REM Run Prepare-Release.ps1 instead to make a portable build.  This script is called by that script
+REM To make a portable build run either of these commands and then this script
+REM .\Set-Portable.ps1 -IsPortable
+REM .\Set-Portable.ps Debug -IsPortable
 
 cd /d "%~p0"
 
@@ -32,17 +36,17 @@ xcopy /y ..\GitExtensions\bin\%Configuration%\GitUI.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\System.IO.Abstractions.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitExtensions\bin\%Configuration%\GitUIPluginInterfaces.dll GitExtensions\
+xcopy /y ..\GitExtensions\bin\%Configuration%\System.ValueTuple.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitExtensions\bin\%Configuration%\Gravatar.dll GitExtensions\
+xcopy /y ..\GitExtensions\bin\%Configuration%\GitUIPluginInterfaces.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\bin\ICSharpCode.SharpZipLib.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\bin\ICSharpCode.TextEditor.dll GitExtensions\
+xcopy /y ..\GitExtensions\bin\%Configuration%\ICSharpCode.TextEditor.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\bin\Microsoft.WindowsAPICodePack.dll GitExtensions\
+xcopy /y ..\GitExtensions\bin\%Configuration%\Microsoft.WindowsAPICodePack.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\bin\Microsoft.WindowsAPICodePack.Shell.dll GitExtensions\
+xcopy /y ..\GitExtensions\bin\%Configuration%\Microsoft.WindowsAPICodePack.Shell.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\NBug.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
@@ -58,7 +62,11 @@ xcopy /y ..\GitExtensions\bin\%Configuration%\Microsoft.VisualStudio.Threading.d
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\Microsoft.VisualStudio.Validation.dll GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
+xcopy /y ..\GitExtensions\bin\%Configuration%\System.Runtime.InteropServices.RuntimeInformation.dll GitExtensions\
+IF ERRORLEVEL 1 EXIT /B 1
 
+REM xcopy /y /e ..\Plugins\GitExtensions.PluginManager\Output GitExtensions\Plugins\
+REM IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\AutoCompileSubmodules\bin\%Configuration%\AutoCompileSubmodules.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\BackgroundFetch\bin\%Configuration%\BackgroundFetch.dll GitExtensions\Plugins\
@@ -78,6 +86,8 @@ IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\BuildServerIntegration\JenkinsIntegration\bin\%Configuration%\JenkinsIntegration.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\BuildServerIntegration\TeamCityIntegration\bin\%Configuration%\TeamCityIntegration.dll GitExtensions\Plugins\
+IF ERRORLEVEL 1 EXIT /B 1
+xcopy /y ..\Plugins\BuildServerIntegration\AzureDevOpsIntegration\bin\%Configuration%\AzureDevOpsIntegration.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\CreateLocalBranches\bin\%Configuration%\CreateLocalBranches.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
@@ -102,6 +112,8 @@ IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\JiraCommitHintPlugin\bin\%Configuration%\JiraCommitHintPlugin.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\JiraCommitHintPlugin\bin\%Configuration%\NString.dll GitExtensions\Plugins\
+IF ERRORLEVEL 1 EXIT /B 1
+xcopy /y ..\Plugins\JiraCommitHintPlugin\bin\%Configuration%\System.Collections.Immutable.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\ProxySwitcher\bin\%Configuration%\ProxySwitcher.dll GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
@@ -148,12 +160,12 @@ REM xcopy /y ..\GitUI\Translation\Italian.xlf GitExtensions\Translation\
 REM IF ERRORLEVEL 1 EXIT /B 1
 REM xcopy /y ..\GitUI\Translation\Italian.Plugins.xlf GitExtensions\Translation\
 REM IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Japanese.gif GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Japanese.xlf GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Japanese.Plugins.xlf GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Japanese.gif GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Japanese.xlf GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Japanese.Plugins.xlf GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
 REM xcopy /y ..\GitUI\Translation\Korean.gif GitExtensions\Translation\
 REM IF ERRORLEVEL 1 EXIT /B 1
 REM xcopy /y ..\GitUI\Translation\Korean.xlf GitExtensions\Translation\
@@ -178,12 +190,12 @@ xcopy /y "..\GitUI\Translation\Simplified Chinese.xlf" GitExtensions\Translation
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y "..\GitUI\Translation\Simplified Chinese.Plugins.xlf" GitExtensions\Translation\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Spanish.gif GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Spanish.xlf GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitUI\Translation\Spanish.Plugins.xlf GitExtensions\Translation\
-IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Spanish.gif GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Spanish.xlf GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
+REM xcopy /y ..\GitUI\Translation\Spanish.Plugins.xlf GitExtensions\Translation\
+REM IF ERRORLEVEL 1 EXIT /B 1
 REM xcopy /y "..\GitUI\Translation\Traditional Chinese.gif" GitExtensions\Translation\
 REM IF ERRORLEVEL 1 EXIT /B 1
 REM xcopy /y "..\GitUI\Translation\Traditional Chinese.xlf" GitExtensions\Translation\
@@ -204,7 +216,7 @@ xcopy /y ..\bin\plink.exe GitExtensions\PuTTY\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\bin\puttygen.exe GitExtensions\PuTTY\
 IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\bin\Logo\git-extensions-logo-final-256.ico GitExtensions\
+xcopy /y ..\Logo\git-extensions-logo.ico GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 
 IF "%ARCHIVE_WITH_PDB%"=="" GOTO create_archive
@@ -221,8 +233,6 @@ IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\GitUI.pdb GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\GitUIPluginInterfaces.pdb GitExtensions\
-IF ERRORLEVEL 1 EXIT /B 1
-xcopy /y ..\GitExtensions\bin\%Configuration%\Gravatar.pdb GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\GitExtensions\bin\%Configuration%\NBug.pdb GitExtensions\
 IF ERRORLEVEL 1 EXIT /B 1
@@ -242,6 +252,8 @@ IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\BuildServerIntegration\JenkinsIntegration\bin\%Configuration%\JenkinsIntegration.pdb GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\BuildServerIntegration\TeamCityIntegration\bin\%Configuration%\TeamCityIntegration.pdb GitExtensions\Plugins\
+IF ERRORLEVEL 1 EXIT /B 1
+xcopy /y ..\Plugins\BuildServerIntegration\AzureDevOpsIntegration\bin\%Configuration%\AzureDevOpsIntegration.pdb GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1
 xcopy /y ..\Plugins\CreateLocalBranches\bin\%Configuration%\CreateLocalBranches.pdb GitExtensions\Plugins\
 IF ERRORLEVEL 1 EXIT /B 1

@@ -41,24 +41,16 @@ namespace GitCommands.Git
         }
 
         /// <inheritdoc />
-        /// <summary>
-        /// Finds if all of the first selected are parents to the selected revision
-        /// </summary>
-        /// <param name="firstSelected">The first selected revisions (A)</param>
-        /// <param name="selectedRevision">The currently (last) selected revision (B)</param>
-        /// <returns>
-        /// True if one of the first selected is parent
-        /// </returns>
         public bool AllFirstAreParentsToSelected(IEnumerable<GitRevision> firstSelected, GitRevision selectedRevision)
         {
-            if (selectedRevision?.ParentGuids == null || firstSelected == null)
+            if (selectedRevision?.ParentIds == null || firstSelected == null)
             {
                 return false;
             }
 
-            foreach (var item in firstSelected.Select(r => r.Guid))
+            foreach (var item in firstSelected.Select(r => r.ObjectId))
             {
-                if (!selectedRevision.ParentGuids.Contains(item, StringComparer.Ordinal))
+                if (!selectedRevision.ParentIds.Contains(item))
                 {
                     return false;
                 }
@@ -68,13 +60,6 @@ namespace GitCommands.Git
         }
 
         /// <inheritdoc />
-        /// <summary>
-        /// Finds if any of the git items exists as a file.
-        /// </summary>
-        /// <param name="selectedItemsWithParent">List of items to resolve and check</param>
-        /// <returns>
-        /// True if at least one file exists.
-        /// </returns>
         public bool AnyLocalFileExists(IEnumerable<GitItemStatus> selectedItemsWithParent)
         {
             if (selectedItemsWithParent == null)
@@ -101,6 +86,7 @@ namespace GitCommands.Git
             return false;
         }
 
+        /// <inheritdoc />
         public bool Matches(GitRevision revision, string criteria)
         {
             if (revision == null || string.IsNullOrWhiteSpace(criteria))
@@ -120,7 +106,7 @@ namespace GitCommands.Git
                 return true;
             }
 
-            return revision.Author?.StartsWith(criteria, StringComparison.CurrentCultureIgnoreCase) == true ||
+            return revision.Author?.IndexOf(criteria, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
                    revision.Subject?.IndexOf(criteria, StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
