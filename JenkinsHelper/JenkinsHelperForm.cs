@@ -102,11 +102,16 @@ namespace JenkinsHelper
 
                 if (buildResponse.IsSuccessStatusCode)
                 {
-                    HttpResponseMessage onDemandResponse = await LaunchOnDemandAsync();
+                    if (chkOnDemand.Checked)
+                    {
+                        HttpResponseMessage onDemandResponse = await LaunchOnDemandAsync();
 
-                    resultMessage = onDemandResponse.IsSuccessStatusCode
-                        ? "The operation was performed successfully."
-                        : $"An error happened: {onDemandResponse.ReasonPhrase}";
+                        resultMessage = onDemandResponse.IsSuccessStatusCode
+                            ? "The operation was performed successfully."
+                            : $"An error happened: {onDemandResponse.ReasonPhrase}";
+                    }
+
+                    resultMessage = "The operation was performed successfully.";
                 }
                 else
                 {
